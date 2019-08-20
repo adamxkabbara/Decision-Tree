@@ -189,7 +189,7 @@ def readFileToNumArray(file_name):
 def treverse_tree(tree, point):
     currNode = tree
     while (currNode.isLeaf == False):
-        if (point[currNode.split[0]] <= currNode.split[1]):
+        if (point[currNode.split[0]] < currNode.split[1]):
             currNode = currNode.yes
         else:
             currNode = currNode.no
@@ -198,10 +198,9 @@ def treverse_tree(tree, point):
 def getAccuracy(training_data, labels):
     error_count = 0
     for index in range(len(labels)):
-        #print(training_data[index][-1], labels[index])
         if (training_data[index][-1] != labels[index]):
             error_count+=1
-
+    print(len(labels))
     return (error_count / float(len(labels)))
 
 def error_rate(tree, training_data):
@@ -214,6 +213,7 @@ def error_rate(tree, training_data):
 def main():
     training_set = readFileToNumArray('train.txt') # get the training data for building tree
     test_set = readFileToNumArray('test.txt') # get the training data for building tree
+    print(test_set.shape)
 
     tree = build_tree(training_set)
 
