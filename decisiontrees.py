@@ -11,7 +11,7 @@ FEATURE_COUNT = 22
 # children: a list of all the data points for the current node
 class node:
 
-    def __init__(self, dataSet=None, yes=None, no=None, label=None, split=None, prune=None, isLeaf=False):
+    def __init__(self, dataSet=None, yes=None, no=None, label=None, split=None, prune=False, isLeaf=False):
         self.dataSet = dataSet
         self.yes = yes
         self.no = no
@@ -19,6 +19,7 @@ class node:
         self.split = split
         self.prune = prune
         self.isLeaf = isLeaf
+        self.maxLabel()
         self.isPure()
 
     def isPure(self):
@@ -28,6 +29,21 @@ class node:
                 self.purity = False
                 return
         self.purity = True
+
+    def maxLabel(self):
+        one_count = 0
+        zero_count = 0
+        
+        for row in self.dataSet:
+            if (row[-1] == 0):
+                zero_count+=1
+            else:
+                one_count+=1
+
+        if (zero_count > one_count):
+            self.label = 0
+        else:
+            self.label = 1
 
 def entropy(probabilities):
     prob_count = len(probabilities)
@@ -112,7 +128,7 @@ def build_tree(training_data):
                     Y_one.append(sortedCurr[row][:])
                 else:
                     Y_zero.append(sortedCurr[row][:])
-            #print(Y_one)
+
             for row in range(training_length - 1):
                 (value1, value2) = (sortedCurr[row][feature], sortedCurr[row + 1][feature])
                 
@@ -128,7 +144,6 @@ def build_tree(training_data):
                         array_no.append(row2[:])
             
                 infoGain.append((feature, conditional_entropy(Y_one, Y_zero, array_yes, array_no, tempSplit, feature), tempSplit))
-                #print(infoGain)
                 array_no.clear()
                 array_yes.clear()
 
@@ -139,9 +154,6 @@ def build_tree(training_data):
 
         queue.append(newNode[0])
         queue.append(newNode[1])
-        #print(newNode[0].dataSet)
-
-        # calculate the entorpy
 
     return root
 
@@ -158,7 +170,6 @@ def splitRule(currNode, feature, split):
     np_yes = np.array(yes)
     np_no = np.array(no)
 
-    #print(feature)
     yesNode = node(dataSet=np_yes)
     noNode = node(dataSet=np_no)
 
@@ -188,7 +199,7 @@ def readFileToNumArray(file_name):
 
 def treverse_tree(tree, point):
     currNode = tree
-    while (currNode.isLeaf == False):
+    while (currNode != None and currNode.isLeaf == False and currNode.prune == False):
         if (point[currNode.split[0]] < currNode.split[1]):
             currNode = currNode.yes
         else:
@@ -200,7 +211,6 @@ def getAccuracy(training_data, labels):
     for index in range(len(labels)):
         if (training_data[index][-1] != labels[index]):
             error_count+=1
-    print(len(labels))
     return (error_count / float(len(labels)))
 
 def error_rate(tree, training_data):
@@ -210,10 +220,34 @@ def error_rate(tree, training_data):
 
     return getAccuracy(training_data, labels)
 
+def prune_tree(root, dataSet):
+    if (root == None):
+        return
+
+    queue = []
+    queue.append(root)
+    foundPrune = False
+
+    while (foundPrune == False):
+        currNode = queue.pop()
+        nonPruneError = error_rate(root, dataSet)
+        currNode.prune = True
+        pruneError = error_rate(root, dataSet)
+
+        if (currNode.isLeaf == False and pruneError <= nonPruneError):
+            currNode.yes = None
+            currNode.no = None
+            currNode.isLeaf = True
+            foundPrune = True
+        else:
+            currNode.prune = False
+            queue.insert(0, currNode.yes)
+            queue.insert(0, currNode.no)
+
 def main():
     training_set = readFileToNumArray('train.txt') # get the training data for building tree
+    validation_set = readFileToNumArray('validation.txt') # get the training data for building tree
     test_set = readFileToNumArray('test.txt') # get the training data for building tree
-    print(test_set.shape)
 
     tree = build_tree(training_set)
 
@@ -232,9 +266,25 @@ def main():
     print(tree.no.no.split, tree.no.no.dataSet.shape[0])
 
     # Training Error Rate
-    print(error_rate(tree, training_set))
+    print('Training Error (without pruning)', error_rate(tree, training_set))
 
     # Test Error Rate
-    print(error_rate(tree, test_set))
+    print('Test Error (without pruning)', error_rate(tree, test_set))
+
+    # Prune Once
+    prune_tree(tree, validation_set)
+    # Training Error Rate
+    print('validation Error (with pruning 1)', error_rate(tree, validation_set))
+
+    # Test Error Rate
+    print('Test Error (with pruning 1)', error_rate(tree, test_set))
+
+   # Prune Once
+    prune_tree(tree, validation_set)
+    # Training Error Rate
+    print('validation Error (with pruning 2)', error_rate(tree, validation_set))
+
+    # Test Error Rate
+    print('Test Error (with pruning 2)', error_rate(tree, test_set))
 
 main()
